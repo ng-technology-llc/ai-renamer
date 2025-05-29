@@ -2,19 +2,49 @@
 
 [![let the ai rename your images](https://img.youtube.com/vi/W4Bn73JHPZs/0.jpg)](https://www.youtube.com/watch?v=W4Bn73JHPZs)
 
+A simple executable that renames image files based on keywords that describe the image. The keywords are generated using **Google Gemini API**.
 
-A simple executable that renames image files based on keywords that describe the image. The keywords are generated using [Ollama.ai](https://ollama.ai). You must have Ollama installed first.
+## Setup
 
-## Installation
+### 1. Get Google Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Create a new API key for Gemini
+3. Copy the API key
 
-1. Find the latest release for your OS [here](https://github.com/technovangelist/airenamer/releases/latest/)
-2. Rename it to something memorable, like airenamer (or airenamer.exe on Windows).
-3. Ensure it is executable. On Linux or Mac, run `chmod +x airenamer`.
-4. Move the file somewhere into your path.
-5. Again, make sure you have [Ollama.ai](https://ollama.ai) installed.
+### 2. Configure Environment
+Create a `.env.local` file in the project directory with your API key:
+
+```
+GOOGLE_API_KEY=your_actual_api_key_here
+```
+
+### 3. Installation
+
+1. Make sure you have [Deno](https://deno.land/) installed
+2. Clone this repository
+3. Set up your `.env.local` file with your Google API key
 
 ## Usage
 
-Navigate to a folder with some images in it and run `airenamer`.
+Navigate to a folder with some images in it and run:
 
-Make sure you have a backup first. It only copies the files, but I'm not responsible for any data loss.
+```bash
+deno run --allow-read --allow-net --allow-write --allow-env main.ts
+```
+
+Or use the npm script:
+
+```bash
+deno task dev
+```
+
+**Make sure you have a backup first.** The tool copies the original files with new names, but I'm not responsible for any data loss.
+
+## Features
+
+- Processes `.jpg`, `.jpeg`, and `.png` files
+- Uses Google Gemini AI to analyze image content
+- Generates descriptive filenames based on image keywords
+- Avoids overwriting existing files
+- Provides detailed progress reporting
+- Rate limiting to respect API limits
