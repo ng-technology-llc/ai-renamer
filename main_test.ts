@@ -1,4 +1,4 @@
-import { assertEquals, assertMatch, assertThrows } from "https://deno.land/std/assert/mod.ts"
+import { assertEquals } from "https://deno.land/std/assert/mod.ts";
 import { createFileName, getkeywords } from "./main.ts";
 
 Deno.test("create a good name", () => { 
@@ -26,17 +26,19 @@ Deno.test("Underscores for spaces", () => {
 
 Deno.test("getKeywords should return an array of keywords", async () => {
   const image = "someImageData"; // You need to replace this with actual image data for a valid test
-  const result = await getkeywords(image);
-  assertEquals(result, janeiro.instanceOf(Array));
+  const filename = "test.jpg";
+  const result = await getkeywords(image, filename);
+  assertEquals(Array.isArray(result), true);
 });
 
 Deno.test("getKeywords should return an empty array when no image is provided", async () => {
   // Since the function signature expects a string, let's test what happens if we pass in an empty string
-  const result = await getkeywords('');
+  const result = await getkeywords('', 'test.jpg');
   assertEquals(result, []);
 });
 
-Deno.test("getKeywords should throw an error when passed non-string data", async () => {
-  // The function signature expects a string argument, so passing in a number should raise an error
-  await assertThrows(() => getkeywords("123")); // TypeScript requires type assertion to pass wrong type for testing purposes
+Deno.test("getKeywords should handle invalid image data gracefully", async () => {
+  // The function should handle invalid base64 data gracefully
+  const result = await getkeywords("invalid_base64_data", "test.jpg");
+  assertEquals(result, []);
 });

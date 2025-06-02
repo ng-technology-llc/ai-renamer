@@ -1,5 +1,5 @@
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
-import { Base64 } from "https://deno.land/x/bb64@1.1.0/mod.ts";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 // Load environment variables from .env.local
 const env = await load({ envPath: ".env.local" });
@@ -10,7 +10,42 @@ if (!GOOGLE_API_KEY) {
   Deno.exit(1);
 }
 
-export async function getkeywords(image: string): Promise<string[]> {
+// Function to determine MIME type based on file extension
+function getMimeType(filename: string): string {
+  const ext = filename.toLowerCase().split('.').pop();
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    default:
+      return 'image/jpeg'; // fallback
+  }
+}
+
+// Function to read file and convert to base64
+async function fileToBase64(filePath: string): Promise<string> {
+  const fileData = await Deno.readFile(filePath);
+  return encodeBase64(fileData);
+}
+
+// Function to create output directory if it doesn't exist
+async function ensureOutputDirectory(outputDir: string): Promise<void> {
+  try {
+    await Deno.stat(outputDir);
+  } catch {
+    // Directory doesn't exist, create it
+    await Deno.mkdir(outputDir, { recursive: true });
+    console.log(`📁 Created output directory: ${outputDir}`);
+  }
+}
+
+export async function getkeywords(image: string, filename: string): Promise<string[]> {
+  const mimeType = getMimeType(filename);
+  
   const body = {
     "contents": [{
       "parts": [
@@ -19,7 +54,7 @@ export async function getkeywords(image: string): Promise<string[]> {
         },
         {
           "inline_data": {
-            "mime_type": "image/jpeg",
+            "mime_type": mimeType,
             "data": image
           }
         }
@@ -56,8 +91,8 @@ export async function getkeywords(image: string): Promise<string[]> {
       // Split by comma and clean up the keywords
       const keywords = keywordsText
         .split(',')
-        .map(k => k.trim().toLowerCase())
-        .filter(k => k.length > 0 && k.length < 20); // Filter out empty or very long keywords
+        .map((k: string) => k.trim().toLowerCase())
+        .filter((k: string) => k.length > 0 && k.length < 20); // Filter out empty or very long keywords
       return keywords;
     }
     
@@ -71,15 +106,23 @@ export async function getkeywords(image: string): Promise<string[]> {
 export function createFileName(keywords: string[], fileext: string): string {
   let newfilename = "";
   if (keywords.length > 0) {
-    const fileparts = keywords.map(k => k.replace(/ /g, "_"));
+    // Clean keywords to remove invalid filename characters
+    const cleanedKeywords = keywords.map(k => k.replace(/[<>:"/\\|?*]/g, "").replace(/ /g, "_"));
     let cl = 0
-    const filteredWords = fileparts.filter(w => {
+    const filteredWords = cleanedKeywords.filter(w => {
       cl = cl + w.length + 1;
-      return cl <= 230
+      return cl <= 230 && w.length > 0; // Also filter out empty strings
     })
     newfilename = filteredWords.join("-") + "." + fileext;
   }
   return newfilename;
+}
+
+// Check if file is a supported image format
+function isImageFile(filename: string): boolean {
+  const supportedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+  const ext = filename.toLowerCase();
+  return supportedExtensions.some(extension => ext.endsWith(extension));
 }
 
 if (import.meta.main) {
@@ -87,31 +130,58 @@ if (import.meta.main) {
   console.log("Processing images in current directory...\n");
 
   const currentpath = Deno.cwd();
+  const outputDir = `${currentpath}/ai-renamed-images`;
   let processedCount = 0;
   let skippedCount = 0;
 
+  // Create output directory
+  await ensureOutputDirectory(outputDir);
+
   for (const file of Deno.readDirSync(".")) {
-    if (file.name.endsWith(".jpg") || file.name.endsWith(".jpeg") || file.name.endsWith(".png")) {
+    if (isImageFile(file.name)) {
       console.log(`Processing: ${file.name}`);
       
       try {
-        const b64 = Base64.fromFile(`${currentpath}/${file.name}`).toString();
-        const keywords = await getkeywords(b64);
+        // Check if file is readable and not empty
+        const fileInfo = await Deno.stat(`${currentpath}/${file.name}`);
+        if (fileInfo.size === 0) {
+          console.log(`  ⚠️  File ${file.name} is empty, skipping...`);
+          skippedCount++;
+          continue;
+        }
+
+        const b64 = await fileToBase64(`${currentpath}/${file.name}`);
+        
+        // Validate base64 data
+        if (!b64 || b64.length === 0) {
+          console.log(`  ⚠️  Could not read image data from ${file.name}, skipping...`);
+          skippedCount++;
+          continue;
+        }
+
+        const keywords = await getkeywords(b64, file.name);
         
         if (keywords.length > 0) {
           const newfilename = createFileName(keywords, file.name.split(".").pop()!);
           
-          if (newfilename && newfilename !== file.name) {
-            // Check if target file already exists
+          if (newfilename && newfilename !== file.name && newfilename.length > 0) {
+            const outputPath = `${outputDir}/${newfilename}`;
+            
+            // Check if target file already exists in output directory
             try {
-              await Deno.stat(`${currentpath}/${newfilename}`);
-              console.log(`  ⚠️  Target file ${newfilename} already exists, skipping...`);
+              await Deno.stat(outputPath);
+              console.log(`  ⚠️  Target file ${newfilename} already exists in output directory, skipping...`);
               skippedCount++;
             } catch {
               // File doesn't exist, safe to copy
-              Deno.copyFileSync(`${currentpath}/${file.name}`, `${currentpath}/${newfilename}`);
-              console.log(`  ✅ Copied to: ${newfilename}`);
-              processedCount++;
+              try {
+                Deno.copyFileSync(`${currentpath}/${file.name}`, outputPath);
+                console.log(`  ✅ Copied to: ai-renamed-images/${newfilename}`);
+                processedCount++;
+              } catch (copyError) {
+                console.error(`  ❌ Failed to copy ${file.name}: ${copyError}`);
+                skippedCount++;
+              }
             }
           } else {
             console.log(`  ⚠️  Could not generate valid filename, skipping...`);
@@ -129,12 +199,13 @@ if (import.meta.main) {
       // Add a small delay to avoid hitting API rate limits
       await new Promise(resolve => setTimeout(resolve, 1000));
     } else {
-      console.log(`Skipping: ${file.name} (not an image)`);
+      console.log(`Skipping: ${file.name} (not a supported image format)`);
     }
   }
   
   console.log(`\n📊 Summary:`);
   console.log(`  Processed: ${processedCount} images`);
   console.log(`  Skipped: ${skippedCount} files`);
+  console.log(`  Output directory: ai-renamed-images/`);
 }
 
