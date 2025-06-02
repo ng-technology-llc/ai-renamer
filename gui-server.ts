@@ -2,6 +2,7 @@ import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { serveFile } from "https://deno.land/std@0.224.0/http/file_server.ts";
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { isAbsolute, resolve } from "https://deno.land/std@0.224.0/path/mod.ts";
 import { createFileName, getkeywords } from "./main.ts";
 
 // Load environment variables
@@ -11,6 +12,18 @@ const GOOGLE_API_KEY = env["GOOGLE_API_KEY"] || Deno.env.get("GOOGLE_API_KEY");
 if (!GOOGLE_API_KEY) {
   console.error("Error: GOOGLE_API_KEY not found in .env.local file or environment variables");
   Deno.exit(1);
+}
+
+// Function to resolve path to absolute path
+function resolveToAbsolutePath(inputPath: string): string {
+  if (isAbsolute(inputPath)) {
+    return inputPath;
+  }
+  
+  // Resolve relative paths to absolute paths
+  const absolutePath = resolve(Deno.cwd(), inputPath);
+  console.log(`🔍 Resolved "${inputPath}" to absolute path: "${absolutePath}"`);
+  return absolutePath;
 }
 
 // Function to determine if file is an image
@@ -49,18 +62,38 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
   };
 
   try {
-    console.log(`🔍 Processing images from: ${sourcePath}`);
-    console.log(`📤 Output directory: ${outputPath}`);
+    // Resolve paths to absolute paths
+    const absoluteSourcePath = resolveToAbsolutePath(sourcePath);
+    const absoluteOutputPath = resolveToAbsolutePath(outputPath);
+    const deletedPath = `${absoluteSourcePath}/deleted`;
+    
+    console.log(`🔍 Processing images from: ${absoluteSourcePath}`);
+    console.log(`📤 Output directory: ${absoluteOutputPath}`);
+    console.log(`🗑️  Deleted directory: ${deletedPath}`);
+    
+    // Verify source directory exists and is accessible
+    try {
+      const sourceInfo = await Deno.stat(absoluteSourcePath);
+      if (!sourceInfo.isDirectory) {
+        throw new Error(`Source path is not a directory: ${absoluteSourcePath}`);
+      }
+    } catch (error) {
+      throw new Error(`Cannot access source directory: ${absoluteSourcePath}. ${error.message}`);
+    }
     
     // Create output directory
-    await ensureOutputDirectory(outputPath);
-    console.log(`✅ Output directory ready: ${outputPath}`);
+    await ensureOutputDirectory(absoluteOutputPath);
+    console.log(`✅ Output directory ready: ${absoluteOutputPath}`);
+
+    // Create deleted directory
+    await ensureOutputDirectory(deletedPath);
+    console.log(`✅ Deleted directory ready: ${deletedPath}`);
 
     // Get all files in source directory
     const files = [];
-    console.log(`📁 Reading source directory: ${sourcePath}`);
+    console.log(`📁 Reading source directory: ${absoluteSourcePath}`);
     
-    for (const file of Deno.readDirSync(sourcePath)) {
+    for (const file of Deno.readDirSync(absoluteSourcePath)) {
       if (file.isFile && isImageFile(file.name)) {
         files.push(file.name);
       }
@@ -71,7 +104,7 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
     for (const filename of files) {
       try {
         console.log(`🔄 Processing: ${filename}`);
-        const filePath = `${sourcePath}/${filename}`;
+        const filePath = `${absoluteSourcePath}/${filename}`;
         
         // Check if file is readable and not empty
         const fileInfo = await Deno.stat(filePath);
@@ -110,7 +143,7 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
           console.log(`📝 Generated filename: ${newFilename}`);
           
           if (newFilename && newFilename !== filename && newFilename.length > 0) {
-            const outputFilePath = `${outputPath}/${newFilename}`;
+            const outputFilePath = `${absoluteOutputPath}/${newFilename}`;
             
             // Check if target file already exists
             try {
@@ -127,12 +160,27 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
               try {
                 await Deno.copyFile(filePath, outputFilePath);
                 console.log(`✅ Successfully copied ${filename} → ${newFilename}`);
-                results.processedCount++;
-                results.progress.push({
-                  filename,
-                  newFilename,
-                  status: 'Success: Copied with new name'
-                });
+                
+                // Move original file to deleted folder
+                const deletedFilePath = `${deletedPath}/${filename}`;
+                try {
+                  await Deno.rename(filePath, deletedFilePath);
+                  console.log(`🗑️  Moved original file ${filename} to deleted folder`);
+                  results.processedCount++;
+                  results.progress.push({
+                    filename,
+                    newFilename,
+                    status: 'Success: Copied with new name, original moved to deleted folder'
+                  });
+                } catch (moveError) {
+                  console.error(`⚠️  Warning: Could not move ${filename} to deleted folder:`, moveError);
+                  results.processedCount++;
+                  results.progress.push({
+                    filename,
+                    newFilename,
+                    status: 'Success: Copied with new name (original file remains in source)'
+                  });
+                }
               } catch (copyError) {
                 console.error(`❌ Failed to copy ${filename}:`, copyError);
                 results.skippedCount++;

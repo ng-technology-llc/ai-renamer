@@ -8,12 +8,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeApp() {
-    // Set default paths based on platform
+    // Set default paths based on platform - use more likely absolute paths
     const defaultPath = navigator.platform.includes('Mac') 
-        ? '/Users/' + (navigator.userAgent.match(/Username\/(\w+)/) ? navigator.userAgent.match(/Username\/(\w+)/)[1] : 'your-username') + '/Pictures'
+        ? '/Users/' + (getUserName() || 'nick') + '/Pictures'
         : navigator.platform.includes('Win') 
-            ? 'C:\\Users\\your-username\\Pictures'
-            : '/home/your-username/Pictures';
+            ? 'C:\\Users\\' + (getUserName() || 'your-username') + '\\Pictures'
+            : '/home/' + (getUserName() || 'your-username') + '/Pictures';
     
     document.getElementById('sourcePath').value = defaultPath;
     
@@ -23,6 +23,23 @@ function initializeApp() {
     
     // Initialize validation
     validatePaths();
+    
+    // Add helpful hints
+    addLogEntry('💡 Tip: Use absolute paths for best results (e.g., /Users/nick/Pictures)', 'info');
+    addLogEntry('🔧 The server will automatically resolve relative paths to absolute paths', 'info');
+}
+
+// Helper function to get username from various sources
+function getUserName() {
+    // Try to get username from various browser APIs
+    try {
+        // This won't work in most browsers due to security, but worth trying
+        return navigator.userAgent.match(/Username\/(\w+)/)?.[1] || 
+               window.location.pathname.split('/')[1] ||
+               null;
+    } catch {
+        return null;
+    }
 }
 
 // Function to trigger directory browsing
@@ -47,23 +64,32 @@ function handleDirectorySelection(inputId, fileInput) {
         pathParts.pop(); // Remove the filename
         directoryPath = pathParts.join('/');
         
-        // Due to browser security restrictions, we can't get the full absolute path
-        // So we'll show a helpful message and suggest the likely full path
         if (directoryPath) {
             // Get just the folder name for a cleaner display
             const folderName = directoryPath.split('/').pop() || directoryPath;
             
-            // Set the relative path but make it clear to the user
-            document.getElementById(inputId).value = `./${folderName}`;
+            // Suggest common absolute path patterns
+            const input = document.getElementById(inputId);
+            let suggestedPath = '';
+            
+            if (navigator.platform.includes('Mac')) {
+                suggestedPath = `/Users/${getUserName() || 'your-username'}/${folderName}`;
+            } else if (navigator.platform.includes('Win')) {
+                suggestedPath = `C:\\Users\\${getUserName() || 'your-username'}\\${folderName}`;
+            } else {
+                suggestedPath = `/home/${getUserName() || 'your-username'}/${folderName}`;
+            }
+            
+            input.value = suggestedPath;
             
             // Provide helpful feedback
             addLogEntry(`📁 Selected directory: "${folderName}"`, 'success');
-            addLogEntry(`🔒 Browser security shows relative path. If processing fails, edit to full path:`, 'info');
-            addLogEntry(`   Example: /Users/nick/${folderName}`, 'info');
+            addLogEntry(`✅ Generated absolute path: ${suggestedPath}`, 'success');
+            addLogEntry(`🔧 Please verify this path is correct for your system`, 'info');
         } else {
             // Fallback if we can't determine the path
             document.getElementById(inputId).value = './selected-directory';
-            addLogEntry('Directory selected. You may need to edit to the full absolute path', 'info');
+            addLogEntry('Directory selected. Please edit to use the full absolute path', 'warning');
         }
         
         validatePaths();
@@ -72,10 +98,20 @@ function handleDirectorySelection(inputId, fileInput) {
 
 function suggestCurrentDir(inputId) {
     const input = document.getElementById(inputId);
-    const currentPath = './';
+    // Instead of relative path, suggest the current working directory pattern
+    let currentPath = '';
+    
+    if (navigator.platform.includes('Mac')) {
+        currentPath = `/Users/${getUserName() || 'your-username'}/current-directory`;
+    } else if (navigator.platform.includes('Win')) {
+        currentPath = `C:\\Users\\${getUserName() || 'your-username'}\\current-directory`;
+    } else {
+        currentPath = `/home/${getUserName() || 'your-username'}/current-directory`;
+    }
+    
     input.value = currentPath;
     validatePaths();
-    addLogEntry('Set to current directory. You may need to adjust the path.', 'info');
+    addLogEntry('Suggested current directory path. Please adjust to your actual path.', 'info');
 }
 
 function suggestOutputDir() {
@@ -83,11 +119,32 @@ function suggestOutputDir() {
     const outputInput = document.getElementById('outputPath');
     
     if (sourcePath) {
-        // Suggest a renamed-images folder in the same parent directory
-        const parentDir = sourcePath.substring(0, sourcePath.lastIndexOf('/')) || sourcePath;
-        outputInput.value = parentDir + '/ai-renamed-images';
+        // For absolute paths, create a sibling directory
+        const isAbsolutePath = sourcePath.startsWith('/') || sourcePath.match(/^[A-Z]:\\/);
+        
+        if (isAbsolutePath) {
+            const parentDir = sourcePath.substring(0, sourcePath.lastIndexOf('/')) || 
+                            sourcePath.substring(0, sourcePath.lastIndexOf('\\'));
+            const separator = sourcePath.includes('/') ? '/' : '\\';
+            outputInput.value = parentDir + separator + 'ai-renamed-images';
+        } else {
+            // For relative paths, still suggest absolute
+            if (navigator.platform.includes('Mac')) {
+                outputInput.value = `/Users/${getUserName() || 'your-username'}/ai-renamed-images`;
+            } else if (navigator.platform.includes('Win')) {
+                outputInput.value = `C:\\Users\\${getUserName() || 'your-username'}\\ai-renamed-images`;
+            } else {
+                outputInput.value = `/home/${getUserName() || 'your-username'}/ai-renamed-images`;
+            }
+        }
     } else {
-        outputInput.value = './ai-renamed-images';
+        if (navigator.platform.includes('Mac')) {
+            outputInput.value = `/Users/${getUserName() || 'your-username'}/ai-renamed-images`;
+        } else if (navigator.platform.includes('Win')) {
+            outputInput.value = `C:\\Users\\${getUserName() || 'your-username'}\\ai-renamed-images`;
+        } else {
+            outputInput.value = `/home/${getUserName() || 'your-username'}/ai-renamed-images`;
+        }
     }
     validatePaths();
     addLogEntry('Auto-generated output directory path', 'info');
@@ -100,6 +157,10 @@ function validatePaths() {
     
     const isValid = sourcePath.length > 0 && outputPath.length > 0 && sourcePath !== outputPath;
     
+    // Check if paths look like absolute paths
+    const sourceIsAbsolute = sourcePath.startsWith('/') || sourcePath.match(/^[A-Z]:\\/);
+    const outputIsAbsolute = outputPath.startsWith('/') || outputPath.match(/^[A-Z]:\\/);
+    
     processBtn.disabled = !isValid || isProcessing;
     
     // Visual feedback
@@ -107,13 +168,21 @@ function validatePaths() {
     const outputInput = document.getElementById('outputPath');
     
     if (sourcePath.length > 0) {
-        sourceInput.style.borderColor = '#10b981';
+        if (sourceIsAbsolute) {
+            sourceInput.style.borderColor = '#10b981';
+        } else {
+            sourceInput.style.borderColor = '#f59e0b'; // Yellow for relative paths
+        }
     } else {
         sourceInput.style.borderColor = '#e5e7eb';
     }
     
     if (outputPath.length > 0 && outputPath !== sourcePath) {
-        outputInput.style.borderColor = '#10b981';
+        if (outputIsAbsolute) {
+            outputInput.style.borderColor = '#10b981';
+        } else {
+            outputInput.style.borderColor = '#f59e0b'; // Yellow for relative paths
+        }
     } else if (outputPath === sourcePath && outputPath.length > 0) {
         outputInput.style.borderColor = '#ef4444';
     } else {

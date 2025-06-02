@@ -2,6 +2,9 @@
   "version": "0.0.8",
   "scripts": {
     "dev": "deno run --allow-read --allow-net --allow-write --allow-env --watch main.ts",
+    "gui": "deno run --allow-read --allow-net --allow-write --allow-env gui-server.ts",
+    "build": "deno compile --allow-read --allow-net --allow-write --allow-env --output airenamer main.ts",
+    "build-gui": "deno compile --allow-read --allow-net --allow-write --allow-env --output airenamer-gui gui-server.ts",
     "buildapp": "deno compile --allow-read --allow-net --allow-write --allow-env --output airenamer main.ts"
   }
 }
