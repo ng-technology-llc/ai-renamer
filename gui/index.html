@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖼️ AI Image Renamer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🖼️ AI Image Renamer</h1>
+            <p>Rename your images with AI-powered descriptive filenames using Google Gemini Vision</p>
+        </header>
+
+        <main>
+            <div class="input-group">
+                <label for="sourcePath">📁 Source Folder Path:</label>
+                <div class="path-input-container">
+                    <input type="text" id="sourcePath" placeholder="e.g., /Users/nick/Pictures or ./my-photos" autocomplete="off">
+                    <button type="button" class="helper-btn" onclick="browseForDirectory('sourcePath')">📂 Browse</button>
+                </div>
+                <p class="help-text">The folder containing images you want to rename (JPG, JPEG, PNG, WebP)</p>
+            </div>
+
+            <div class="input-group">
+                <label for="outputPath">📤 Output Folder Path:</label>
+                <div class="path-input-container">
+                    <input type="text" id="outputPath" placeholder="e.g., /Users/nick/Pictures/renamed-images or ./output" autocomplete="off">
+                    <button type="button" class="helper-btn" onclick="browseForDirectory('outputPath')">📂 Browse</button>
+                    <button type="button" class="helper-btn" onclick="suggestOutputDir()">✨ Auto</button>
+                </div>
+                <p class="help-text">Where the renamed image copies will be saved (original files remain unchanged)</p>
+            </div>
+
+            <!-- Hidden file inputs for directory selection -->
+            <input type="file" id="sourceDirectoryInput" webkitdirectory style="display: none;" onchange="handleDirectorySelection('sourcePath', this)">
+            <input type="file" id="outputDirectoryInput" webkitdirectory style="display: none;" onchange="handleDirectorySelection('outputPath', this)">
+
+            <div class="action-section">
+                <button id="processBtn" class="process-btn" onclick="startProcessing()">
+                    🚀 Start Renaming Process
+                </button>
+                <button id="stopBtn" class="stop-btn" onclick="stopProcessing()" style="display: none;">
+                    ⏹️ Stop Processing
+                </button>
+            </div>
+
+            <div id="statusSection" class="status-section">
+                <div id="statusText" class="status-text">Ready to process images</div>
+                <div id="progress" class="progress-container" style="display: none;">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+            </div>
+
+            <div id="logSection" class="log-section" style="display: none;">
+                <h3>📋 Processing Log</h3>
+                <div id="logContainer" class="log-container"></div>
+            </div>
+
+            <div id="resultsSection" class="results-section" style="display: none;">
+                <h3>📊 Processing Results</h3>
+                <div id="summary" class="summary"></div>
+                <div id="details" class="details"></div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="info-panel">
+                <h4>ℹ️ Important Information</h4>
+                <ul>
+                    <li><strong>Safe Operation:</strong> Original files are never modified or deleted</li>
+                    <li><strong>API Requirements:</strong> Requires Google Gemini API key in .env.local file</li>
+                    <li><strong>Rate Limits:</strong> 3-second delay between images to respect API limits</li>
+                    <li><strong>Supported Formats:</strong> JPG, JPEG, PNG, WebP</li>
+                    <li><strong>File Conflicts:</strong> Existing files in output folder will not be overwritten</li>
+                    <li><strong>Browse Feature:</strong> Use Browse buttons for easy directory selection</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html> 

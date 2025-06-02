@@ -68,39 +68,85 @@ export async function getkeywords(image: string, filename: string): Promise<stri
     }
   };
 
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+  // Retry logic with exponential backoff for rate limiting
+  const maxRetries = 3;
+  let baseDelay = 5000; // Start with 5 seconds
 
-    if (response.status !== 200) {
-      console.log(`Error: ${response.status}: ${response.statusText}`);
-      const errorText = await response.text();
-      console.log(`Error details: ${errorText}`);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GOOGLE_API_KEY}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.status === 429) {
+        // Rate limited - check retry delay from response
+        const errorText = await response.text();
+        let retryDelay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          // Try to extract retry delay from the error response
+          if (errorData.error?.details) {
+            for (const detail of errorData.error.details) {
+              if (detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo" && detail.retryDelay) {
+                const delaySeconds = parseInt(detail.retryDelay.replace('s', ''));
+                if (!isNaN(delaySeconds)) {
+                  retryDelay = delaySeconds * 1000; // Convert to milliseconds
+                }
+              }
+            }
+          }
+        } catch (parseError) {
+          // If we can't parse the error, use exponential backoff
+        }
+
+        if (attempt < maxRetries) {
+          console.log(`⏳ Rate limited. Waiting ${Math.round(retryDelay / 1000)} seconds before retry ${attempt + 1}/${maxRetries}...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        } else {
+          console.log(`❌ Max retries reached for ${filename}. Rate limit exceeded.`);
+          return [];
+        }
+      }
+
+      if (response.status !== 200) {
+        console.log(`Error: ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        console.log(`Error details: ${errorText}`);
+        return [];
+      }
+
+      const json = await response.json();
+      
+      if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts[0]) {
+        const keywordsText = json.candidates[0].content.parts[0].text;
+        // Split by comma and clean up the keywords
+        const keywords = keywordsText
+          .split(',')
+          .map((k: string) => k.trim().toLowerCase())
+          .filter((k: string) => k.length > 0 && k.length < 20); // Filter out empty or very long keywords
+        return keywords;
+      }
+      
       return [];
+    } catch (error) {
+      if (attempt < maxRetries) {
+        console.log(`⚠️ API error for ${filename}, retrying... (${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, baseDelay * Math.pow(2, attempt)));
+        continue;
+      } else {
+        console.error(`❌ Error calling Gemini API for ${filename}: ${error}`);
+        return [];
+      }
     }
-
-    const json = await response.json();
-    
-    if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts[0]) {
-      const keywordsText = json.candidates[0].content.parts[0].text;
-      // Split by comma and clean up the keywords
-      const keywords = keywordsText
-        .split(',')
-        .map((k: string) => k.trim().toLowerCase())
-        .filter((k: string) => k.length > 0 && k.length < 20); // Filter out empty or very long keywords
-      return keywords;
-    }
-    
-    return [];
-  } catch (error) {
-    console.error(`Error calling Gemini API: ${error}`);
-    return [];
   }
+
+  return [];
 }
 
 export function createFileName(keywords: string[], fileext: string): string {
@@ -197,7 +243,7 @@ if (import.meta.main) {
       }
       
       // Add a small delay to avoid hitting API rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Increased to 2 seconds
     } else {
       console.log(`Skipping: ${file.name} (not a supported image format)`);
     }
@@ -208,4 +254,3 @@ if (import.meta.main) {
   console.log(`  Skipped: ${skippedCount} files`);
   console.log(`  Output directory: ai-renamed-images/`);
 }
-
