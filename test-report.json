@@ -1,0 +1,114 @@
+{
+  "timestamp": "2025-06-03T08:49:33.304Z",
+  "summary": {
+    "total": 6,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 6,
+    "passRate": "0.0",
+    "totalTime": "9606.20"
+  },
+  "suites": [
+    {
+      "name": "Unit Tests",
+      "file": "./test/unit-tests.ts",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "totalTime": "3678.17",
+      "tests": [
+        {
+          "name": "Suite Output",
+          "status": "SKIP",
+          "duration": 0,
+          "error": "No test results could be parsed from output"
+        }
+      ]
+    },
+    {
+      "name": "Integration Tests",
+      "file": "./test/integration-tests.ts",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "totalTime": "650.12",
+      "tests": [
+        {
+          "name": "Suite Output",
+          "status": "SKIP",
+          "duration": 0,
+          "error": "No test results could be parsed from output"
+        }
+      ]
+    },
+    {
+      "name": "Performance Tests",
+      "file": "./test/performance-tests.ts",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "totalTime": "583.74",
+      "tests": [
+        {
+          "name": "Suite Output",
+          "status": "SKIP",
+          "duration": 0,
+          "error": "No test results could be parsed from output"
+        }
+      ]
+    },
+    {
+      "name": "Security Tests",
+      "file": "./test/security-tests.ts",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "totalTime": "345.96",
+      "tests": [
+        {
+          "name": "Suite Output",
+          "status": "SKIP",
+          "duration": 0,
+          "error": "No test results could be parsed from output"
+        }
+      ]
+    },
+    {
+      "name": "End-to-End Tests",
+      "file": "./test/e2e-tests.ts",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "totalTime": "397.81",
+      "tests": [
+        {
+          "name": "Suite Output",
+          "status": "SKIP",
+          "duration": 0,
+          "error": "No test results could be parsed from output"
+        }
+      ]
+    },
+    {
+      "name": "Original Tests",
+      "file": "./main_test.ts",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "totalTime": "3949.48",
+      "tests": [
+        {
+          "name": "Suite Output",
+          "status": "SKIP",
+          "duration": 0,
+          "error": "No test results could be parsed from output"
+        }
+      ]
+    }
+  ],
+  "qualityMetrics": {
+    "reliability": 0,
+    "security": 0,
+    "performance": 0
+  }
+}

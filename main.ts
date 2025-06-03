@@ -50,7 +50,7 @@ export async function getkeywords(image: string, filename: string): Promise<stri
     "contents": [{
       "parts": [
         {
-          "text": "Analyze this image and provide descriptive keywords that could be used for a filename. Return only a comma-separated list of relevant keywords (no JSON, just keywords). Focus on the main subjects, objects, colors, and setting."
+          "text": "Analyze this image and provide exactly 3 descriptive words that best describe the main content of the image. These words will be used as a filename. Return only the 3 words separated by commas (no JSON, no extra text, just 3 descriptive words). Focus on the most important subjects, objects, or scene elements."
         },
         {
           "inline_data": {
@@ -64,7 +64,7 @@ export async function getkeywords(image: string, filename: string): Promise<stri
       "temperature": 0.4,
       "topK": 32,
       "topP": 1,
-      "maxOutputTokens": 100
+      "maxOutputTokens": 50
     }
   };
 
@@ -125,11 +125,12 @@ export async function getkeywords(image: string, filename: string): Promise<stri
       
       if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts[0]) {
         const keywordsText = json.candidates[0].content.parts[0].text;
-        // Split by comma and clean up the keywords
+        // Split by comma and clean up the keywords, limit to 3 words
         const keywords = keywordsText
           .split(',')
           .map((k: string) => k.trim().toLowerCase())
-          .filter((k: string) => k.length > 0 && k.length < 20); // Filter out empty or very long keywords
+          .filter((k: string) => k.length > 0 && k.length < 20) // Filter out empty or very long keywords
+          .slice(0, 3); // Limit to maximum 3 words
         return keywords;
       }
       
@@ -152,14 +153,15 @@ export async function getkeywords(image: string, filename: string): Promise<stri
 export function createFileName(keywords: string[], fileext: string): string {
   let newfilename = "";
   if (keywords.length > 0) {
-    // Clean keywords to remove invalid filename characters
-    const cleanedKeywords = keywords.map(k => k.replace(/[<>:"/\\|?*]/g, "").replace(/ /g, "_"));
-    let cl = 0
-    const filteredWords = cleanedKeywords.filter(w => {
-      cl = cl + w.length + 1;
-      return cl <= 230 && w.length > 0; // Also filter out empty strings
-    })
-    newfilename = filteredWords.join("-") + "." + fileext;
+    // Clean keywords to remove invalid filename characters and limit to 3 words
+    const cleanedKeywords = keywords
+      .slice(0, 3) // Ensure maximum 3 words
+      .map(k => k.replace(/[<>:"/\\|?*]/g, "").replace(/ /g, "_"))
+      .filter(w => w.length > 0); // Filter out empty strings
+    
+    if (cleanedKeywords.length > 0) {
+      newfilename = cleanedKeywords.join("-") + "." + fileext;
+    }
   }
   return newfilename;
 }
