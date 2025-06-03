@@ -1,3 +1,13 @@
 archive
 node_modules
 .env.local
+
+# Docker volumes and test directories
+images/
+ai-renamed-images/
+test-images/
+test-output/
+
+# Build artifacts
+airenamer
+airenamer-gui

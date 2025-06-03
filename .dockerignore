@@ -1,0 +1,56 @@
+# Git and version control
+.git
+.gitignore
+
+# Documentation
+*.md
+CHANGELOG.md
+LICENSE
+
+# Test files and outputs
+test-images/
+test-output/
+test-report.json
+ai-renamed-images/
+images/
+
+# Build artifacts
+airenamer
+airenamer-gui
+target/
+
+# Environment files (will be mounted separately)
+.env
+.env.local
+.env.*.local
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node modules (if any)
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# GitHub workflows
+.github/ 

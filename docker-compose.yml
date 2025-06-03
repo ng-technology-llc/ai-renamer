@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # GUI version - web interface
+  airenamer-gui:
+    build: .
+    container_name: airenamer-gui
+    ports:
+      - "8090:9000"
+    volumes:
+      # Mount your images directory here
+      - ./images:/app/input:ro
+      # Mount output directory
+      - ./ai-renamed-images:/app/ai-renamed-images
+      # Mount for environment file
+      - ./.env.local:/app/.env.local:ro
+    environment:
+      - DENO_DIR=/app/.deno_cache
+    command: ["deno", "run", "--allow-read", "--allow-net", "--allow-write", "--allow-env", "gui-server.ts"]
+    restart: unless-stopped
+
+  # CLI version - for batch processing
+  airenamer-cli:
+    build: .
+    container_name: airenamer-cli
+    volumes:
+      # Mount your images directory here
+      - ./images:/app/input:ro
+      # Mount output directory  
+      - ./ai-renamed-images:/app/ai-renamed-images
+      # Mount for environment file
+      - ./.env.local:/app/.env.local:ro
+    environment:
+      - DENO_DIR=/app/.deno_cache
+    working_dir: /app/input
+    command: ["deno", "run", "--allow-read", "--allow-net", "--allow-write", "--allow-env", "/app/main.ts"]
+    profiles:
+      - cli  # Only start when explicitly requested
+
+  # Development version with live reload
+  airenamer-dev:
+    build: .
+    container_name: airenamer-dev
+    ports:
+      - "8081:9000"
+    volumes:
+      - .:/app
+      - ./images:/app/input:ro
+      - ./ai-renamed-images:/app/ai-renamed-images
+      - ./.env.local:/app/.env.local:ro
+    environment:
+      - DENO_DIR=/app/.deno_cache
+    command: ["deno", "run", "--allow-read", "--allow-net", "--allow-write", "--allow-env", "--watch", "gui-server.ts"]
+    profiles:
+      - dev  # Only start when explicitly requested 
