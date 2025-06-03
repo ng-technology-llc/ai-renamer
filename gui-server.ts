@@ -78,7 +78,8 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
         throw new Error(`Source path is not a directory: ${absoluteSourcePath}`);
       }
     } catch (error) {
-      throw new Error(`Cannot access source directory: ${absoluteSourcePath}. ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Cannot access source directory: ${absoluteSourcePath}. ${errorMessage}`);
     }
     
     // Create output directory
@@ -90,7 +91,7 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
     console.log(`✅ Deleted directory ready: ${deletedPath}`);
 
     // Get all files in source directory
-    const files = [];
+    const files: string[] = [];
     console.log(`📁 Reading source directory: ${absoluteSourcePath}`);
     
     for (const file of Deno.readDirSync(absoluteSourcePath)) {
@@ -215,19 +216,21 @@ async function processImages(sourcePath: string, outputPath: string): Promise<{
         console.log(`⏳ Waiting 3 seconds before next image...`);
         await new Promise(resolve => setTimeout(resolve, 3000));
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
         console.error(`❌ Error processing ${filename}:`, error);
         results.skippedCount++;
-        results.errors.push(`Error processing ${filename}: ${error}`);
+        results.errors.push(`Error processing ${filename}: ${errorMessage}`);
         results.progress.push({
           filename,
           newFilename: '',
-          status: `Error: ${error}`
+          status: `Error: ${errorMessage}`
         });
       }
     }
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`❌ Error accessing directory:`, error);
-    results.errors.push(`Error accessing directory: ${error}`);
+    results.errors.push(`Error accessing directory: ${errorMessage}`);
   }
 
   console.log(`📊 Processing complete! Processed: ${results.processedCount}, Skipped: ${results.skippedCount}, Errors: ${results.errors.length}`);
@@ -273,7 +276,8 @@ const handler = async (request: Request): Promise<Response> => {
         },
       });
     } catch (error) {
-      return new Response(JSON.stringify({ error: error.toString() }), {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return new Response(JSON.stringify({ error: errorMessage }), {
         status: 500,
         headers: {
           "Content-Type": "application/json",
@@ -315,7 +319,8 @@ for (const port of possiblePorts) {
     serverStarted = true;
     break;
   } catch (error) {
-    if (error.message?.includes("Address already in use")) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes("Address already in use")) {
       console.log(`⚠️  Port ${port} is already in use, trying next port...`);
       continue;
     } else {
